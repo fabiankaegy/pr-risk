@@ -1,4 +1,4 @@
-# Grades every PR's risk with TypeSafe's Jev and auto-approves low/medium risk ones.
+# Checks every PR for footguns with TypeSafe's Jev and auto-approves the rest.
 # See .github/pr-risk/README.md for the repo settings this relies on.
 name: PR risk
 
@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 24
       # No dependencies to install: Node 24 runs the TypeScript directly.
-      - run: node assess.ts
+      - run: node action.ts
         working-directory: .github/pr-risk
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
