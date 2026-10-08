@@ -228,7 +228,9 @@ if (!dryRun) {
 	if (approve) {
 		await github(`/pulls/${prNumber}/reviews`, {
 			method: "POST",
-			body: { event: "APPROVE", commit_id: pr.head.sha, body: `Risk: ${assessment.risk}. Auto-approved by pr-risk.` },
+			// The comment is the single source of truth for the risk level; it's
+			// updated on every run, while review bodies stay frozen in the timeline.
+			body: { event: "APPROVE", commit_id: pr.head.sha, body: `Auto-approved by pr-risk at ${pr.head.sha.slice(0, 7)}.` },
 		});
 	} else {
 		await dismissBotApprovals();
