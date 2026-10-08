@@ -27,7 +27,7 @@ Each file goes to Jev as its own request, so PR size doesn't matter. A single fi
 
 ## Setup
 
-1. Copy `.github/pr-risk/` and the two workflows in `.github/workflows/` into your repo.
+1. Copy `.github/pr-risk/` and `.github/workflows/pr-risk.yml` into your repo.
 2. Add a `TYPESAFE_API_KEY` repository secret.
 3. **Settings → Actions → General**: enable *Allow GitHub Actions to create and approve pull requests*.
 4. **Settings → Rules → Rulesets**, on your default branch:
@@ -39,14 +39,17 @@ The workflow runs on `pull_request_target`, so its code and policy always come f
 
 ## Tuning with a backtest
 
-Run **Actions → PR risk backtest** with a repo and a PR count. It replays the policy over that repo's most recently merged PRs and writes a table to the run summary showing which PRs would have been approved, flagged or blocked, and why. Nothing is written to the target repo. Private repos need a fine-grained token with read access, saved as a `BACKTEST_GITHUB_TOKEN` secret.
-
-Locally:
+`backtest.ts` replays the policy over existing PRs and prints a table of which ones would have been approved, flagged or blocked, and why. It writes nothing to the target repo.
 
 ```sh
 cd .github/pr-risk
+# Last 100 merged PRs
 GITHUB_TOKEN=$(gh auth token) TYPESAFE_API_KEY=... node backtest.ts owner/repo 100
+# Your open PRs
+GITHUB_TOKEN=$(gh auth token) TYPESAFE_API_KEY=... node backtest.ts owner/repo 20 "is:open author:you"
 ```
+
+Run it locally. The report names PRs and files, and Actions logs on a public repo are public.
 
 ## Trying a single PR locally
 
