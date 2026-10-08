@@ -1,3 +1,3 @@
 # pr-risk
 
-GitHub Action that grades every PR's risk with TypeSafe's Jev and auto-approves low and medium risk PRs. See [`.github/pr-risk/README.md`](.github/pr-risk/README.md) for setup.
+GitHub Action that checks every PR for footguns with TypeSafe's Jev and auto-approves the rest. See [`.github/pr-risk/README.md`](.github/pr-risk/README.md) for setup.
