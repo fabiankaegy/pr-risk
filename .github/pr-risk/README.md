@@ -18,8 +18,8 @@ The bot keeps a single comment on the PR, updated on every push. If a later push
 
 Everything tunable lives in [`policy.ts`](policy.ts):
 
-- **`DANGERS`**: yes/no questions about specific mistakes, such as weakening an auth check, unescaped user input, or deleting data without a safeguard. They name the mistake, not the topic, so ordinary feature work in those areas passes.
-- **`FLAG_AT` / `BLOCK_AT`**: probability thresholds, 0.3 and 0.7 to start. Tune them with the backtest below.
+- **`DANGERS`**: yes/no questions about specific mistakes in a file's diff, such as weakening an auth check, unescaped user input, or deleting data without a safeguard. They name the mistake, not the topic, so ordinary feature work in those areas passes. `flagOnly` dangers, like new dependencies, never block.
+- **`FLAG_AT` / `BLOCK_AT`**: probability thresholds, 0.5 and 0.8, set from a backtest on real feature PRs. Retune them with the backtest below.
 - **`SENSITIVE_PATHS`**: always need a human. By default that's the gate itself: workflows, this folder, and CODEOWNERS.
 - **`IGNORED_PATHS`**: generated files Jev doesn't need to read, such as lockfiles and snapshots.
 

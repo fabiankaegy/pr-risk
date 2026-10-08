@@ -16,6 +16,7 @@ import { github, githubAll } from "./github.ts";
 // Marks the bot's comment so reruns update it instead of adding new ones.
 const COMMENT_MARKER = "<!-- pr-risk -->";
 const BOT_LOGIN = "github-actions[bot]";
+const MAX_LISTED = 10;
 
 const LABELS: Record<Outcome, string> = {
 	approve: "pr-risk: approved",
@@ -36,8 +37,11 @@ const base = `/repos/${repo}`;
 /** Renders the assessment as the PR comment. */
 function renderComment({ outcome, findings, headSha }: Assessment): string {
 	const icon = { block: "🛑", flag: "⚠️" };
+	// Findings are sorted most likely first; past MAX_LISTED they're mostly noise.
 	const list = findings
+		.slice(0, MAX_LISTED)
 		.map((f) => `- ${icon[f.severity]} \`${f.file}\`: ${f.reason} (${Math.round(f.probability * 100)}%)`)
+		.concat(findings.length > MAX_LISTED ? [`- …and ${findings.length - MAX_LISTED} more`] : [])
 		.join("\n");
 	return [COMMENT_MARKER, `### ${HEADINGS[outcome]}`, list, `<sub>Assessed by Jev at ${headSha.slice(0, 7)}</sub>`]
 		.filter(Boolean)

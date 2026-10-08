@@ -89,15 +89,18 @@ async function assessFile(pr: any, changedFiles: string[], file: any): Promise<F
 	}
 	if (file.patch.length > MAX_PATCH_CHARS) return [finding("Diff too large to inspect", 1, "flag")];
 
+	// The PR description stays out: it describes the whole PR, so it made every
+	// file look like it contained what the description mentions, and it's an
+	// easy place to address the reviewer.
 	const answers = await askJev({
-		pull_request: { title: pr.title, description: pr.body ?? "" },
-		changed_files: changedFiles,
+		pull_request: pr.title,
+		other_changed_files: changedFiles,
 		file: file.filename,
 		diff: file.patch,
 	});
 	return Object.entries(answers)
 		.filter(([, p]) => p >= FLAG_AT)
-		.map(([id, p]) => finding(DANGERS[id].reason, p, p >= BLOCK_AT ? "block" : "flag"));
+		.map(([id, p]) => finding(DANGERS[id].reason, p, p >= BLOCK_AT && !DANGERS[id].flagOnly ? "block" : "flag"));
 }
 
 /** Assesses a PR file by file. `repo` is "owner/name". */
