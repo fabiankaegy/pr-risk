@@ -56,8 +56,15 @@ export const DANGERS: Record<string, { question: string; reason: string; flagOnl
 export const FLAG_AT = 0.5;
 export const BLOCK_AT = 0.8;
 
-// Changes to these paths always wait for a human: they control the gate itself.
-export const SENSITIVE_PATHS = [".github/workflows/**", ".github/pr-risk/**", "**/CODEOWNERS"];
+// Changes to these paths always wait for a human: they control CI, which runs
+// with the repo's secrets, and the gate itself.
+export const SENSITIVE_PATHS = [
+	".github/workflows/**",
+	".github/actions/**",
+	".github/scripts/**",
+	".github/pr-risk/**",
+	"**/CODEOWNERS",
+];
 
 // Generated files that aren't worth sending to Jev.
-export const IGNORED_PATHS = ["**/package-lock.json", "**/composer.lock", "**/yarn.lock", "**/pnpm-lock.yaml", "**/*.min.js", "**/*.snap"];
+export const IGNORED_PATHS = ["**/package-lock.json", "**/composer.lock", "**/yarn.lock", "**/pnpm-lock.yaml", "**/*.min.js", "**/*.snap", "**/*.pot"];

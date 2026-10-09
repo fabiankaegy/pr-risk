@@ -28,6 +28,10 @@ export interface Assessment {
 // question. A single file's diff above this gets flagged instead of read.
 const MAX_PATCH_CHARS = 100_000;
 
+// How many of the PR's other changed files to list as context with each file.
+// Release PRs touch thousands, which alone would overflow Jev's context.
+const MAX_CONTEXT_FILES = 100;
+
 // Parallel Jev requests per PR. Retries handle any rate limiting beyond this.
 const CONCURRENCY = 8;
 
@@ -47,25 +51,38 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
 	return results;
 }
 
-/** Asks Jev every danger question about one state; returns each "yes" probability. */
-async function askJev(state: unknown): Promise<Record<string, number>> {
+/**
+ * Asks Jev every danger question about one state; returns each "yes"
+ * probability, or null when the state is too long for Jev's context.
+ */
+async function askJev(state: unknown): Promise<Record<string, number> | null> {
 	const questions = Object.fromEntries(
 		Object.entries(DANGERS).map(([id, danger]) => [id, { type: "noul", instructions: danger.question }]),
 	);
 	const body = JSON.stringify({ model: "jev-latest", state, questions });
 
-	// Retry rate limits (429) and overload (529) with exponential backoff.
-	let res: Response;
+	// Retry network errors, rate limits (429) and overload (529) with exponential backoff.
+	let res: Response | undefined;
 	for (let attempt = 0; ; attempt++) {
-		res = await fetch("https://api.typesafe.ai/v1/systemone", {
-			method: "POST",
-			headers: { Authorization: `Bearer ${process.env.TYPESAFE_API_KEY}`, "Content-Type": "application/json" },
-			body,
-		});
-		if (![429, 529].includes(res.status) || attempt === 4) break;
+		try {
+			res = await fetch("https://api.typesafe.ai/v1/systemone", {
+				method: "POST",
+				headers: { Authorization: `Bearer ${process.env.TYPESAFE_API_KEY}`, "Content-Type": "application/json" },
+				body,
+			});
+			if (![429, 529].includes(res.status)) break;
+		} catch (error) {
+			if (attempt === 4) throw error;
+		}
+		if (attempt === 4) break;
 		await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
 	}
-	if (!res.ok) throw new Error(`Jev: ${res.status} ${await res.text()}`);
+	if (!res) throw new Error("Jev: no response");
+	if (!res.ok) {
+		const error = await res.text();
+		if (res.status === 400 && error.includes("max_tokens_exceeded")) return null;
+		throw new Error(`Jev: ${res.status} ${error}`);
+	}
 
 	const { answers } = (await res.json()) as { answers: Record<string, { noul: number }> };
 	return Object.fromEntries(Object.keys(DANGERS).map((id) => [id, answers[id].noul]));
@@ -94,10 +111,11 @@ async function assessFile(pr: any, changedFiles: string[], file: any): Promise<F
 	// easy place to address the reviewer.
 	const answers = await askJev({
 		pull_request: pr.title,
-		other_changed_files: changedFiles,
+		other_changed_files: changedFiles.slice(0, MAX_CONTEXT_FILES),
 		file: file.filename,
 		diff: file.patch,
 	});
+	if (!answers) return [finding("Diff too large to inspect", 1, "flag")];
 	return Object.entries(answers)
 		.filter(([, p]) => p >= FLAG_AT)
 		.map(([id, p]) => finding(DANGERS[id].reason, p, p >= BLOCK_AT && !DANGERS[id].flagOnly ? "block" : "flag"));
@@ -111,7 +129,8 @@ export async function assessPullRequest(repo: string, number: number): Promise<A
 
 	const findings = (await mapLimit(files, CONCURRENCY, (file) => assessFile(pr, changedFiles, file)))
 		.flat()
-		.sort((a, b) => b.probability - a.probability);
+		// Blocking findings first, then most likely first.
+		.sort((a, b) => Number(b.severity === "block") - Number(a.severity === "block") || b.probability - a.probability);
 
 	const outcome: Outcome = findings.some((f) => f.severity === "block")
 		? "block"

@@ -24,11 +24,16 @@ const LABELS: Record<Outcome, string> = {
 	block: "pr-risk: needs review",
 };
 
+// Phrased so they hold in trial mode too, where nothing gets approved.
 const HEADINGS: Record<Outcome, string> = {
-	approve: "✅ Auto-approved",
-	flag: "⚠️ Auto-approved with flags: worth a look after merging",
-	block: "🛑 Human review required",
+	approve: "✅ No footguns found",
+	flag: "⚠️ Safe to merge, worth a look afterwards",
+	block: "🛑 Needs human review",
 };
+
+// Set AUTO_APPROVE=false to trial pr-risk: it labels and comments but never
+// approves, so teammates don't read a bot approval as a review.
+const autoApprove = process.env.AUTO_APPROVE !== "false";
 
 const repo = process.env.GITHUB_REPOSITORY!;
 const prNumber = Number(process.env.PR_NUMBER);
@@ -76,7 +81,9 @@ if (!process.env.DRY_RUN) {
 	if (existing) await github(`${base}/issues/comments/${existing.id}`, { method: "PATCH", body: { body: comment } });
 	else await github(`${base}/issues/${prNumber}/comments`, { method: "POST", body: { body: comment } });
 
-	if (assessment.outcome !== "block") {
+	if (!autoApprove) {
+		// Trial mode: the label and comment are all.
+	} else if (assessment.outcome !== "block") {
 		await github(`${base}/pulls/${prNumber}/reviews`, {
 			method: "POST",
 			body: { event: "APPROVE", commit_id: assessment.headSha, body: `Auto-approved by pr-risk at ${assessment.headSha.slice(0, 7)}.` },

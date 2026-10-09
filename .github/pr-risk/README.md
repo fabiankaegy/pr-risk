@@ -14,16 +14,18 @@ The question isn't "is this PR risky?", since every feature is. It's "if this is
 
 The bot keeps a single comment on the PR, updated on every push. If a later push blocks the PR, the bot withdraws its earlier approval.
 
+To trial it on a team repo, set `AUTO_APPROVE: "false"` in the workflow's `env`. pr-risk then only labels and comments, so nobody mistakes a bot approval for a review.
+
 ## Policy
 
 Everything tunable lives in [`policy.ts`](policy.ts):
 
 - **`DANGERS`**: yes/no questions about specific mistakes in a file's diff, such as weakening an auth check, unescaped user input, or deleting data without a safeguard. They name the mistake, not the topic, so ordinary feature work in those areas passes. `flagOnly` dangers, like new dependencies, never block.
 - **`FLAG_AT` / `BLOCK_AT`**: probability thresholds, 0.5 and 0.8, set from a backtest on real feature PRs. Retune them with the backtest below.
-- **`SENSITIVE_PATHS`**: always need a human. By default that's the gate itself: workflows, this folder, and CODEOWNERS.
-- **`IGNORED_PATHS`**: generated files Jev doesn't need to read, such as lockfiles and snapshots.
+- **`SENSITIVE_PATHS`**: always need a human. By default that's CI (workflows, `.github/actions`, `.github/scripts`), this folder, and CODEOWNERS.
+- **`IGNORED_PATHS`**: generated files Jev doesn't need to read, such as lockfiles, snapshots and `.pot` translation files.
 
-Each file goes to Jev as its own request, so PR size doesn't matter. A single file over 100k characters is flagged rather than read, because Jev's context is reportedly 32k tokens.
+Each file goes to Jev as its own request, so PR size doesn't matter. A file too long for Jev's context is flagged rather than read.
 
 ## Setup
 
